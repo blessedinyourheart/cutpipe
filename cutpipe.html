@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Create Heaven</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+        }
+        canvas{
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="cont">
+        <div class="input-group">
+            <label for="number1">Введите диаметр привариваемой трубы (<=D2):< /label>
+                    <input type="number" id="value1" name="number1" placeholder="D1">
+        </div>
+
+        <div class="input-group">
+            <label for="number2">Введите диаметр основной трубы (>=D1):</label>
+            <input type="number" id="value2" name="number2" placeholder="D2">
+        </div>
+        <div class="input-group">
+            <label for="number3">Задайте угол соприкосновения:</label>
+            <input type="number" id="angle" name="number2" placeholder="10° - 90°">
+        </div>
+        <div class="input-group">
+            <label for="number3">Задайте количество точек кратное 2:</label>
+            <input type="number" id="points" name="number2" value="64" placeholder="кратное 2">
+        </div>
+        <div class="gray_row">
+            <div class="ctrl_row">
+                <button class="inp" onclick="showOriginal()">Создать схему</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        let tubeDiameter1;
+        let tubeRadius1;
+        let circumference1;
+        let tubeDiameter2;
+        let tubeRadius2;
+        let circumference2;
+        let points;
+        let pointsOnLine = [];
+        let heights = [];
+        let angleConnect;
+        let heightMax;
+        let heightMin;
+
+        function showOriginal() {
+            //Проверяем, есть ли канвас уже на странице
+            const element = document.getElementById('myCanvas');
+            if (element) {
+                element.remove();
+                console.log(1);
+            } else {
+                console.log(0);
+            }
+            //инициализируем переменные
+            initialise();
+            //просчитываем схему
+            calculateScheme(tubeRadius1, tubeRadius2, points, angleConnect);
+            //создаем холст для отображения схемы
+            const cont = document.getElementById('cont');
+            const divForCanvas = document.createElement('div');
+            divForCanvas.id = 'canvasContainer';
+            // ввести ширину и высоту холста относительно размера трубы
+            const canvas = document.createElement('canvas');
+            canvas.id = 'myCanvas';
+            canvas.width = mmToPx(circumference1 + 20);
+            canvas.height = mmToPx(Math.sqrt(Math.pow(heightMax, 2)) + Math.sqrt(Math.pow(heightMin, 2)) + 50);
+            canvas.style.border = '1px solid #000';
+            divForCanvas.appendChild(canvas);
+            cont.appendChild(divForCanvas);
+            let context = canvas.getContext("2d");
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            //создаем разметку поля
+            createRuler(context, canvas, mmToPx(circumference1 + 10));
+
+            //соединяем точки
+            for (let i = 0; i <= points; i++) {
+                drawLine(context, mmToPx(10 + pointsOnLine[i]), canvas.height - mmToPx(heightMax + 10) + mmToPx(heights[i]), mmToPx(10 + pointsOnLine[i + 1]), canvas.height - mmToPx(heightMax + 10) + mmToPx(heights[i + 1]), 'black', 2);
+            }
+
+            context.font = '10px Arial';
+            context.fillStyle = 'black';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            let text = `D1 ${tubeDiameter1} => ${angleConnect}° => D2 ${tubeDiameter2}`
+            context.fillText(text, canvas.width / 2, 20);
+            context.fillText(`Длина окружности = ${Math.floor(circumference1 * 100) / 100} мм`, canvas.width / 2, 40);
+
+            console.log(heights.length, pointsOnLine.length);
+            console.log(heightMin, heightMax)
+            //очистка массива с предыдущего просчета
+            heights = [];
+            pointsOnLine = [];
+
+        }
+        function initialise() {
+            tubeDiameter1 = parseFloat(document.getElementById('value1').value);
+            tubeDiameter2 = parseFloat(document.getElementById('value2').value);
+            tubeRadius1 = tubeDiameter1 / 2;
+            tubeRadius2 = tubeDiameter2 / 2;
+            circumference1 = tubeDiameter1 * Math.PI;
+            circumference2 = tubeDiameter2 * Math.PI;
+            points = parseFloat(document.getElementById('points').value);
+            for (let k = 0; k < circumference1; k = k + (circumference1) / points) {
+                pointsOnLine.push(k);
+            }
+            pointsOnLine.push(circumference1);
+            angleConnect = parseFloat(document.getElementById('angle').value);
+        }
+        function createRuler(context, canvas, circumference) {
+            drawLine(context, mmToPx(10), mmToPx(10), circumference, mmToPx(10), 'black', 1);
+            for (let i = 0; i <= pointsOnLine.length; i++) {
+                drawLine(context, mmToPx(pointsOnLine[i] + 10), mmToPx(10), mmToPx(pointsOnLine[i] + 10), canvas.height - mmToPx(10), 'grey', 0.2);
+            }
+        }
+
+        function calculateScheme(rad1, rad2, pnts, angle) {
+            let ab = rad1;
+
+            for (i = 0; i < 360; i = i + (360 / pnts)) {
+
+                let bc = ab * Math.sin(i / (180 / Math.PI));
+                let bd = ab - Math.sqrt(Math.pow(ab, 2) - Math.pow(bc, 2));
+                let be = rad2;
+                let aeb = Math.asin((ab - bd) / be) * (180 / Math.PI);
+                let ak = be * Math.cos(aeb / (180 / Math.PI)) - (Math.cos(Math.asin(rad1 / rad2)) * rad2);
+                let fb = bc / Math.sin(angle / (180 / Math.PI));
+                let cf = Math.sqrt(Math.pow(fb, 2) - Math.pow(bc, 2));
+                let ck;
+                if (i <= 180) {
+                    ck = cf - (ak / Math.sin(angle / (180 / Math.PI)));
+                    heights.push(ck);
+                } else {
+                    ck = - cf - (ak / Math.sin(angle / (180 / Math.PI)));
+                    heights.push(ck);
+                }
+            }
+            heights.push(0);
+            heightMax = Math.max(...heights);
+            heightMin = Math.min(...heights);
+            console.log(parseFloat(document.getElementById('value1').value))
+            console.log(parseFloat(document.getElementById('value2').value))
+        }
+
+        function drawLine(context, startW, startH, endW, endH, color, lineWidth) {
+            context.beginPath();
+            context.moveTo(startW, startH);
+            context.lineTo(endW, endH);
+            context.strokeStyle = color;
+            context.lineWidth = lineWidth;
+            context.stroke();
+        }
+
+        function mmToPx(mm) {
+            return mm / 0.352775;
+        }
+    </script>
+</body>
+
+</html>
